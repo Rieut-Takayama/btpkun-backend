@@ -1,5 +1,6 @@
-// Mock API service that always returns successful dummy responses
+ï»¿// Mock API service that always returns successful dummy responses
 const endpoints = {
+  notifySignal: "/api/notify/signal",
   status: "/api/status",
   login: "/api/auth/login",
   logout: "/api/auth/logout",
@@ -38,9 +39,9 @@ const apiService = {
       };
     }
 
-    // ’Ê’mİ’è‚Ìƒ‚ƒbƒNƒŒƒXƒ|ƒ“ƒX
+    // é€šçŸ¥è¨­å®šã®ãƒ¢ãƒƒã‚¯ãƒ¬ã‚¹ãƒãƒ³ã‚¹
     if (endpoint === endpoints.notificationSettings) {
-      // localStorage ‚©‚ç’Ê’mİ’è‚ğæ“¾i‚È‚¯‚ê‚ÎƒfƒtƒHƒ‹ƒg’l‚ğ•Ô‚·j
+      // localStorage ã‹ã‚‰é€šçŸ¥è¨­å®šã‚’å–å¾—ï¼ˆãªã‘ã‚Œã°ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆå€¤ã‚’è¿”ã™ï¼‰
       const savedSettings = localStorage.getItem("notificationSettings");
       if (savedSettings) {
         return JSON.parse(savedSettings);
@@ -51,7 +52,7 @@ const apiService = {
       };
     }
 
-    // ’Ê’m—š—ğ‚Ìƒ‚ƒbƒNƒŒƒXƒ|ƒ“ƒX
+    // é€šçŸ¥å±¥æ­´ã®ãƒ¢ãƒƒã‚¯ãƒ¬ã‚¹ãƒãƒ³ã‚¹
     if (endpoint === endpoints.notifications) {
       return {
         notifications: [
@@ -84,7 +85,7 @@ const apiService = {
       // Generate 100 candles
       for (let i = 0; i < 100; i++) {
         const timestamp = now - (100 - i) * 60 * 60 * 1000; // 1 hour intervals
-        const changePercent = (Math.random() - 0.5) * 0.05; // }2.5% change
+        const changePercent = (Math.random() - 0.5) * 0.05; // Â±2.5% change
         const open = lastPrice;
         const close = open * (1 + changePercent);
         const high = Math.max(open, close) * (1 + Math.random() * 0.01);
@@ -182,9 +183,9 @@ const apiService = {
   async put(endpoint, data = {}) {
     console.log(`[MOCK] PUT ${endpoint}`, data);
     
-    // ’Ê’mİ’è‚Ì•Û‘¶
+    // é€šçŸ¥è¨­å®šã®ä¿å­˜
     if (endpoint === endpoints.notificationSettings) {
-      // ’Ê’mİ’è‚ğlocalStorage‚É•Û‘¶
+      // é€šçŸ¥è¨­å®šã‚’localStorageã«ä¿å­˜
       localStorage.setItem("notificationSettings", JSON.stringify(data));
       return { 
         message: "Notification settings updated successfully (mock)",
@@ -206,4 +207,6 @@ const apiService = {
 };
 
 export default apiService;
+
+
 

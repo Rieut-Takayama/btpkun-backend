@@ -15,11 +15,53 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [buyScore, setBuyScore] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [notificationEmail, setNotificationEmail] = useState(localStorage.getItem('notificationEmail') || '');
+  const [notificationStatus, setNotificationStatus] = useState('');
+  const [isSendingNotification, setIsSendingNotification] = useState(false);
 
   // Logout handler
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  // メール通知設定を保存
+  const saveNotificationEmail = () => {
+    if (!notificationEmail || !notificationEmail.includes('@')) {
+      setNotificationStatus('有効なメールアドレスを入力してください');
+      return;
+    }
+    
+    localStorage.setItem('notificationEmail', notificationEmail);
+    setNotificationStatus('通知設定を保存しました');
+    
+    // 3秒後にステータスメッセージをクリア
+    setTimeout(() => setNotificationStatus(''), 3000);
+  };
+
+  // シグナル通知を送信
+  const sendSignalNotification = async () => {
+    const email = localStorage.getItem('notificationEmail');
+    if (!email) return;
+    
+    if (buyScore >= 70) {
+      setIsSendingNotification(true);
+      try {
+        await api.post(api.endpoints.notifySignal, {
+          signal: { 
+            type: 'BUY_SIGNAL', 
+            message: '買いシグナルが強くなっています。取引検討をおすすめします。' 
+          },
+          strength: buyScore,
+          email: email
+        });
+        console.log('通知送信完了');
+      } catch (error) {
+        console.error('通知送信エラー:', error);
+      } finally {
+        setIsSendingNotification(false);
+      }
+    }
   };
 
   // Check API status and get data on component mount
@@ -34,7 +76,7 @@ const Dashboard = () => {
         try {
           const data = await getLatestMarketData();
           setMarketData(data);
-          
+
           // Get buy score from API or calculate it
           const chartData = await api.get(api.endpoints.chart);
           if (chartData && chartData.buyScore !== undefined) {
@@ -61,10 +103,10 @@ const Dashboard = () => {
     };
 
     fetchData();
-    
+
     // Refresh data periodically
     const intervalId = setInterval(fetchData, 60000); // Every minute
-    
+
     return () => clearInterval(intervalId);
   }, []);
 
@@ -150,15 +192,63 @@ const Dashboard = () => {
                 <div>高</div>
                 <div>100%</div>
               </div>
-              
+
               {/* Simple action recommendation */}
               {buyScore >= 70 && (
                 <div className="buy-recommendation">
                   <div className="recommendation-title">AI推奨</div>
-                  <div className="recommendation-text">買いシグナルが強いです！ポジションを開くことを検討してください。</div>
-                  <div className="recommendation-detail">推奨エントリー価格: {marketData && formatNumber(marketData.lastPrice * 0.99, 6)} (現在価格の-1%)</div>
+                  <div className="recommendation-text">
+                    買いシグナルが強いです！ポジションを開くことを検討してください。
+                  </div>
+                  <div className="recommendation-detail">
+                    推奨エントリー価格: {marketData && formatNumber(marketData.lastPrice * 0.99, 6)} (現在価格の-1%)
+                  </div>
                 </div>
               )}
+            </div>
+
+            {/* 通知設定パネル */}
+            <div className="dashboard-card">
+              <div className="card-header">
+                <h2 className="card-title">通知設定</h2>
+              </div>
+              <div style={{ padding: '16px' }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label>メール通知</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input 
+                      type="email" 
+                      placeholder="メールアドレスを入力" 
+                      value={notificationEmail}
+                      onChange={(e) => setNotificationEmail(e.target.value)}
+                      style={{ flex: 1, padding: '8px 12px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '14px' }}
+                    />
+                    <button 
+                      onClick={saveNotificationEmail} 
+                      className="button-primary"
+                    >
+                      保存
+                    </button>
+                  </div>
+                  {notificationStatus && (
+                    <div style={{ marginTop: '8px', fontSize: '14px', color: '#1a73e8' }}>
+                      {notificationStatus}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button 
+                    onClick={sendSignalNotification}
+                    disabled={!notificationEmail || buyScore < 70 || isSendingNotification}
+                    className="button-secondary"
+                  >
+                    {isSendingNotification ? '送信中...' : 'テスト通知を送信'}
+                  </button>
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    ※買いシグナル強度が70%以上の時に通知されます
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -168,4 +258,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
