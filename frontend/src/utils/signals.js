@@ -5,7 +5,7 @@ import {
   calculateMACD,
   calculateVolumeChange,
   calculatePriceStability
-} from './indicators';
+} from './indicators.js';  // .jsを追加
 
 /**
  * シグナル①: 買い込みフェーズ検出（出来高増加とローソク横ばい）
