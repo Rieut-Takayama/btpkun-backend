@@ -1,11 +1,12 @@
 // シグナル検出ロジック
+// .js拡張子を明示的に指定してモジュールパスの解決問題を修正
 import {
   calculateBollingerBands,
   calculateRSI,
   calculateMACD,
   calculateVolumeChange,
   calculatePriceStability
-} from './indicators.js';  // .jsを追加
+} from './indicators.js';
 
 /**
  * シグナル①: 買い込みフェーズ検出（出来高増加とローソク横ばい）
@@ -203,3 +204,41 @@ export const calculateTotalBuyScore = (signals) => {
   // 総合買い度を計算（最大100%）
   return Math.min(100, Math.round((totalStrength / maxPossibleStrength) * 100));
 };
+
+/**
+ * シグナル生成の総合関数 - server.jsから呼び出される
+ * この関数は各種シグナル検出ロジックを実行し、総合的な買いシグナル強度を算出します
+ * 
+ * @returns {Promise<{strength: number, message: string}>} 検出結果
+ */
+export async function generateSignal() {
+  try {
+    // ダミーデータ生成（実際の実装では、APIからデータを取得するなど）
+    const prices = Array(30).fill(0).map((_, i) => 100 + Math.random() * 10);
+    const volumes = Array(30).fill(0).map((_, i) => 1000 + Math.random() * 500);
+    const lows = prices.map(p => p - Math.random() * 5);
+
+    // 各シグナルを検出
+    const accPhaseSignal = detectAccumulationPhase(prices, volumes);
+    const vReversalSignal = detectVReversal(prices);
+    const bbBreakSignal = detectBollingerBreakout(prices, lows);
+
+    // 検出されたシグナルを集約
+    const signals = [accPhaseSignal, vReversalSignal, bbBreakSignal];
+    const detectedSignals = signals.filter(s => s.detected);
+
+    // 総合買い度を計算
+    const strength = calculateTotalBuyScore(signals);
+    
+    // メッセージ生成
+    let message = `買いシグナル強度: ${strength}%`;
+    if (detectedSignals.length > 0) {
+      message += ` (${detectedSignals.map(s => s.message).join(', ')})`;
+    }
+
+    return { strength, message };
+  } catch (error) {
+    console.error('シグナル生成エラー:', error);
+    return { strength: 0, message: 'エラーが発生しました' };
+  }
+}
