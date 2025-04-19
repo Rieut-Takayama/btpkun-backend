@@ -1,6 +1,6 @@
 {
   "name": "btpkun",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "BTP-kun application (updated)",
   "main": "server.js",
   "scripts": {
