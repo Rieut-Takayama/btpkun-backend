@@ -737,3 +737,39 @@
   from { opacity: 0; transform: translateY(-5px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* メール通知設定 */
+.email-settings {
+  background-color: var(--card-bg-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+}
+
+.email-settings-content {
+  padding: 15px;
+}
+
+.email-input-group {
+  margin: 15px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.email-input-group label {
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.email-input {
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 14px;
+  width: 100%;
+}
+
+.notification-status {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--text-color-secondary);
+}
