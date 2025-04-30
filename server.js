@@ -1,4 +1,4 @@
-ï»¿require('dotenv').config();
+require('dotenv').config();
 const mongoose = require('mongoose');
 const cron = require("node-cron");
 const nodemailer = require("nodemailer");
@@ -7,14 +7,15 @@ const cors = require("cors");
 const axios = require("axios");
 const crypto = require("crypto");
 const path = require("path");
+const { analyzeMarket } = require('./market-analyzer');
 
 mongoose.connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 }).then(() => {
-    console.log('[BTP-kun] MongoDBæ¥ç¶šæˆåŠŸ âœ…');
+    console.log('[BTP-kun] MongoDBÚ‘±¬Œ÷ ?');
 }).catch((err) => {
-    console.error('[BTP-kun] MongoDBæ¥ç¶šå¤±æ•— âŒ:', err);
+    console.error('[BTP-kun] MongoDBÚ‘±¸”s ?:', err);
 });
 
 const app = express();
@@ -109,21 +110,18 @@ app.post("/api/config/test", async (req, res) => {
     }
 });
 
+// ‘I‘ğ‚µ‚½ƒVƒ“ƒ{ƒ‹‚Ìƒ`ƒƒ[ƒgƒf[ƒ^‚ğæ“¾
 app.get("/api/chart", async (req, res) => {
     try {
-        const interval = req.query.interval || "hourly";
+        const symbol = req.query.symbol || "BTCUSDT";
+        const interval = req.query.interval || "1h";
         const limit = parseInt(req.query.limit) || 100;
-        const map = {
-            oneMin: "1m", threeMin: "3m", fiveMin: "5m", tenMin: "15m",
-            fifteenMin: "15m", thirtyMin: "30m", hourly: "1h", fourHour: "4h", daily: "1d"
-        };
-        const mexcInterval = map[interval] || "1h";
 
         let candles = [];
         if (apiConfig) {
             try {
                 const response = await axios.get("https://api.mexc.com/api/v3/klines", {
-                    params: { symbol: "OKMUSDT", interval: mexcInterval, limit }
+                    params: { symbol, interval, limit }
                 });
                 candles = response.data.map(item => ({
                     timestamp: parseInt(item[0]),
@@ -134,6 +132,7 @@ app.get("/api/chart", async (req, res) => {
                     volume: parseFloat(item[5])
                 }));
             } catch (e) {
+                console.error("MEXC API error for chart data:", e);
                 candles = generateDummyCandles(limit);
             }
         } else {
@@ -142,6 +141,7 @@ app.get("/api/chart", async (req, res) => {
 
         res.json({ candles });
     } catch (e) {
+        console.error("Chart data error:", e);
         res.status(500).json({ error: "Failed to fetch chart data" });
     }
 });
@@ -151,28 +151,108 @@ app.get("*", (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(Server running on port );
 });
 
-// ================== AIé€šçŸ¥ãƒ»ãƒ­ã‚°ä¿å­˜ ===================
+// ================== ƒVƒOƒiƒ‹ŒŸoE’Ê’m ===================
 
 const User = require("./models/User");
 const NotificationLog = require("./models/NotificationLog");
 
-const notifyInterval = 30; // åˆ†
+const notifyInterval = 30; // •ª
 let lastNotifiedAt = null;
 
+// ‘ÎÛ‚Æ‚·‚éˆÃ†‘Y‚ÌƒŠƒXƒg
+const targetSymbols = [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "XRPUSDT",
+    "SOLUSDT",
+    "OKMUSDT"
+];
+
+// 1•ª‚¨‚«‚ÉƒVƒOƒiƒ‹ŒŸo
 setInterval(async () => {
     try {
-        const { generateSignal } = require('./frontend/src/utils/signals');
-        const signal = await generateSignal();
+        for (const symbol of targetSymbols) {
+            await checkSignalForSymbol(symbol);
+        }
+    } catch (err) {
+        console.error('[BTP-kun] ƒVƒOƒiƒ‹ŒŸoƒGƒ‰[:', err);
+    }
+}, 60 * 1000); // 1•ª‚²‚Æ‚ÉÀs
+
+async function checkSignalForSymbol(symbol) {
+    try {
         const now = new Date();
-
         const canNotify = !lastNotifiedAt || (now - lastNotifiedAt) >= notifyInterval * 60 * 1000;
-
-        if (signal && signal.strength >= 85 && canNotify) {
-            console.log(`[BTP-kun] å¼·ã‚·ã‚°ãƒŠãƒ«ï¼ˆ${signal.strength}%ï¼‰â†’ é€šçŸ¥é€ä¿¡`);
-
+        
+        if (!canNotify) return; // ’Ê’mŠÔŠu‚ğ–‚½‚µ‚Ä‚¢‚È‚¢ê‡‚ÍƒXƒLƒbƒv
+        
+        // MEXC‚©‚çƒf[ƒ^æ“¾
+        let candles = [];
+        try {
+            if (apiConfig) {
+                const response = await axios.get("https://api.mexc.com/api/v3/klines", {
+                    params: { symbol, interval: "1h", limit: 100 }
+                });
+                candles = response.data.map(item => ({
+                    timestamp: parseInt(item[0]),
+                    open: parseFloat(item[1]),
+                    high: parseFloat(item[2]),
+                    low: parseFloat(item[3]),
+                    close: parseFloat(item[4]),
+                    volume: parseFloat(item[5])
+                }));
+            } else {
+                // APIİ’è‚ª‚È‚¢ê‡‚Íƒ_ƒ~[ƒf[ƒ^
+                candles = generateDummyCandles(100);
+            }
+        } catch (e) {
+            console.error(\[BTP-kun] \‚Ìƒf[ƒ^æ“¾ƒGƒ‰[:\, e);
+            return;
+        }
+        
+        if (candles.length < 30) {
+            console.log(\[BTP-kun] \‚Ì\•ª‚Èƒf[ƒ^‚ª‚ ‚è‚Ü‚¹‚ñ\);
+            return;
+        }
+        
+        // ‰¿Šiƒf[ƒ^‚Æo—ˆ‚ƒf[ƒ^‚ğ’Šo
+        const prices = candles.map(c => c.close);
+        const volumes = candles.map(c => c.volume);
+        const lows = candles.map(c => c.low);
+        
+        // ƒeƒNƒjƒJƒ‹w•W‚ğŒvZ
+        const { 
+            calculateBollingerBands, 
+            calculateRSI, 
+            calculateMACD,
+            calculateVolumeChange,
+            calculatePriceStability
+        } = require('./frontend/src/utils/indicators');
+        
+        const technicalData = {
+            prices: prices,
+            bollingerBands: calculateBollingerBands(prices),
+            rsi: calculateRSI(prices),
+            macd: calculateMACD(prices),
+            volumeChange: calculateVolumeChange(volumes),
+            priceStability: calculatePriceStability(prices)
+        };
+        
+        // ƒVƒOƒiƒ‹ŒŸoƒƒWƒbƒN
+        const { generateSignal } = require('./frontend/src/utils/signals');
+        const signal = await generateSignal(prices, volumes, lows);
+        
+        if (signal && signal.strength >= 85) {
+            console.log(\[BTP-kun] \‚Å‹­ƒVƒOƒiƒ‹i\%j¨ ’Ê’m‘—M\);
+            
+            // sê•ªÍ‚ğ¶¬
+            const analysis = analyzeMarket(technicalData, signal.strength);
+            
+            // ƒ[ƒ‹’Ê’m‚ğ‘—M
             const transporter = nodemailer.createTransport({
                 service: 'gmail',
                 auth: {
@@ -180,50 +260,64 @@ setInterval(async () => {
                     pass: process.env.EMAIL_PASS
                 }
             });
-
+            
             const mailOptions = {
                 from: process.env.EMAIL_USER,
                 to: process.env.EMAIL_TARGET,
-                subject: 'ã€BTP-kunã€‘å¼·ã„è²·ã„ã‚·ã‚°ãƒŠãƒ«é€šçŸ¥',
-                text: `å¼·ã„è²·ã„ã‚·ã‚°ãƒŠãƒ«ï¼ˆ${signal.strength}%ï¼‰ãŒæ¤œå‡ºã•ã‚Œã¾ã—ãŸã€‚`
-            };
+                subject: \yBTP-kunz\‚Ì”ƒ‚¢ƒVƒOƒiƒ‹i\%j\,
+                text: \
+\‚Å”ƒ‚¢ƒVƒOƒiƒ‹‚ğŒŸo‚µ‚Ü‚µ‚½i‹­“x: \%j
 
+\
+
+------------------------------
+¦‚±‚Ìƒ[ƒ‹‚ÍBTP-kun‚É‚æ‚é©“®’Ê’m‚Å‚·B
+¦“Š‘”»’f‚Í©ŒÈÓ”C‚Å‚¨Šè‚¢‚µ‚Ü‚·B
+\
+            };
+            
             await transporter.sendMail(mailOptions);
             lastNotifiedAt = now;
-
-            await logNotification(process.env.EMAIL_TARGET, signal.strength);
-            console.log('[BTP-kun] é€šçŸ¥é€ä¿¡å®Œäº†');
+            
+            await logNotification(process.env.EMAIL_TARGET, symbol, signal.strength);
+            console.log(\[BTP-kun] \‚Ì’Ê’m‘—MŠ®—¹\);
         }
     } catch (err) {
-        console.error('[BTP-kun] é€šçŸ¥å‡¦ç†ã‚¨ãƒ©ãƒ¼:', err);
-    }
-}, 1000);
-
-// é€šçŸ¥ãƒ­ã‚°è¨˜éŒ²é–¢æ•°
-async function logNotification(email, strength) {
-    try {
-        await NotificationLog.create({ email, strength });
-        console.log('[BTP-kun] é€šçŸ¥ãƒ­ã‚°ã‚’è¨˜éŒ²ã—ã¾ã—ãŸ');
-    } catch (err) {
-        console.error('[BTP-kun] é€šçŸ¥ãƒ­ã‚°è¨˜éŒ²ã‚¨ãƒ©ãƒ¼:', err);
+        console.error(\[BTP-kun] \‚Ìˆ—ƒGƒ‰[:\, err);
     }
 }
 
-// ãƒ€ãƒŸãƒ¼ãƒ‡ãƒ¼ã‚¿ç”Ÿæˆï¼ˆçœç•¥å¯ï¼‰
+// ’Ê’mƒƒO‹L˜^ŠÖ”
+async function logNotification(email, symbol, strength) {
+    try {
+        await NotificationLog.create({ 
+            email, 
+            symbol,
+            strength, 
+            createdAt: new Date() 
+        });
+        console.log('[BTP-kun] ’Ê’mƒƒO‚ğ‹L˜^‚µ‚Ü‚µ‚½');
+    } catch (err) {
+        console.error('[BTP-kun] ’Ê’mƒƒO‹L˜^ƒGƒ‰[:', err);
+    }
+}
+
+// ƒ_ƒ~[ƒf[ƒ^¶¬
 function generateDummyCandles(limit) {
     const now = Date.now();
     const candles = [];
-    let base = 0.02134;
+    let base = 100; // Šî€‰¿Ši
     let close = base;
 
     for (let i = 0; i < limit; i++) {
         const ts = now - (limit - i) * 60 * 60 * 1000;
-        const vol = 0.005, p = (Math.random() - 0.5) * vol;
+        const volatility = 0.02; // 2%‚Ìƒ{ƒ‰ƒeƒBƒŠƒeƒB
+        const randomChange = (Math.random() - 0.5) * volatility;
         const open = close;
-        const chg = open * p;
-        const newClose = open + chg;
-        const high = Math.max(open, newClose) + Math.random() * open * 0.002;
-        const low = Math.min(open, newClose) - Math.random() * open * 0.002;
+        const change = open * randomChange;
+        const newClose = open + change;
+        const high = Math.max(open, newClose) + Math.random() * open * 0.005;
+        const low = Math.min(open, newClose) - Math.random() * open * 0.005;
         const volume = 1000000 + Math.random() * 1000000;
 
         candles.push({ timestamp: ts, open, high, low, close: newClose, volume });
@@ -232,6 +326,19 @@ function generateDummyCandles(limit) {
 
     return candles;
 }
+
+// NotificationLogƒ‚ƒfƒ‹‚ÌXVisymbolƒtƒB[ƒ‹ƒh‚Ì’Ç‰Áj
+try {
+    const notificationLogSchema = mongoose.model('NotificationLog').schema;
+    if (!notificationLogSchema.obj.symbol) {
+        mongoose.model('NotificationLog').schema.add({ symbol: String });
+        console.log('[BTP-kun] NotificationLogƒXƒL[ƒ}‚ÉsymbolƒtƒB[ƒ‹ƒh‚ğ’Ç‰Á‚µ‚Ü‚µ‚½');
+    }
+} catch (err) {
+    console.error('[BTP-kun] NotificationLogƒXƒL[ƒ}‚ÌXVƒGƒ‰[:', err);
+}
+
+// ‹N“®‚Éˆê“xƒeƒXƒg’Ê’m‚ğ‘—M
 setTimeout(async () => {
   const nodemailer = require("nodemailer");
 
@@ -246,14 +353,16 @@ setTimeout(async () => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: process.env.EMAIL_TARGET,
-    subject: 'ã€BTP-kunã€‘ãƒ†ã‚¹ãƒˆé€šçŸ¥',
-    text: 'ã“ã‚Œã¯BTP-kunã®ãƒ¡ãƒ¼ãƒ«é€šçŸ¥ãƒ†ã‚¹ãƒˆã§ã™ğŸ“©',
+    subject: 'yBTP-kunzƒVƒXƒeƒ€‹N“®’Ê’m',
+    text: 'BTP-kun‚ª‹N“®‚µ‚Ü‚µ‚½BMEXCæˆøŠ‚ÌˆÈ‰º‚Ì–Á•¿‚ğŠÄ‹‚µ‚Ü‚·F\n\n' + targetSymbols.join('\n') + '\n\n”ƒ‚¢ƒVƒOƒiƒ‹i85%ˆÈãj‚ğŒŸo‚µ‚½Û‚É’Ê’m‚µ‚Ü‚·B',
   };
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log('[BTP-kun] ğŸ“© ãƒ†ã‚¹ãƒˆé€šçŸ¥ãƒ¡ãƒ¼ãƒ«é€ä¿¡å®Œäº†');
+    console.log('[BTP-kun] ?? ƒVƒXƒeƒ€‹N“®’Ê’mƒ[ƒ‹‘—MŠ®—¹');
   } catch (err) {
-    console.error('[BTP-kun] âŒ ãƒ†ã‚¹ãƒˆé€šçŸ¥å¤±æ•—:', err);
+    console.error('[BTP-kun] ? ƒVƒXƒeƒ€‹N“®’Ê’m¸”s:', err);
   }
 }, 3000);
+
+

@@ -1,50 +1,264 @@
-ï»¿// Temporary indicators.js with dummy implementations
-// These functions should be properly implemented in the future
+// Technical indicators implementation
 
 /**
- * ãƒœãƒªãƒ³ã‚¸ãƒ£ãƒ¼ãƒãƒ³ãƒ‰ã®è¨ˆç®—
+ * ƒ{ƒŠƒ“ƒWƒƒ[ƒoƒ“ƒh‚ÌŒvZ
+ * @param {Array} prices - ‰¿Šiƒf[ƒ^‚Ì”z—ñ
+ * @param {Number} period - ŠúŠÔiƒfƒtƒHƒ‹ƒg20j
+ * @param {Number} stdDev - •W€•Î·‚Ì”{—¦iƒfƒtƒHƒ‹ƒg2j
+ * @return {Object} upper, middle, lower‚ğŠÜ‚ŞƒIƒuƒWƒFƒNƒg
  */
 export function calculateBollingerBands(prices, period = 20, stdDev = 2) {
-  // ãƒ€ãƒŸãƒ¼å®Ÿè£…
-  return {
-    upper: Array(prices.length).fill(0),
-    middle: Array(prices.length).fill(0),
-    lower: Array(prices.length).fill(0)
+  const result = {
+    upper: Array(prices.length).fill(null),
+    middle: Array(prices.length).fill(null),
+    lower: Array(prices.length).fill(null)
   };
+  
+  // ƒf[ƒ^‚ª•s‘«‚µ‚Ä‚¢‚éê‡‚Í‘ŠúƒŠƒ^[ƒ“
+  if (prices.length < period) {
+    return result;
+  }
+  
+  // Šeƒ|ƒCƒ“ƒg‚Åƒ{ƒŠƒ“ƒWƒƒ[ƒoƒ“ƒh‚ğŒvZ
+  for (let i = period - 1; i < prices.length; i++) {
+    // ŠúŠÔ“à‚Ì‰¿Šiƒf[ƒ^
+    const periodPrices = prices.slice(i - period + 1, i + 1);
+    
+    // ’PƒˆÚ“®•½‹Ï‚ÌŒvZ
+    const sma = periodPrices.reduce((sum, price) => sum + price, 0) / period;
+    
+    // •W€•Î·‚ÌŒvZ
+    const squaredDiffs = periodPrices.map(price => Math.pow(price - sma, 2));
+    const variance = squaredDiffs.reduce((sum, diff) => sum + diff, 0) / period;
+    const standardDeviation = Math.sqrt(variance);
+    
+    // ƒ{ƒŠƒ“ƒWƒƒ[ƒoƒ“ƒh‚ÌŒvZ
+    result.middle[i] = sma;
+    result.upper[i] = sma + (standardDeviation * stdDev);
+    result.lower[i] = sma - (standardDeviation * stdDev);
+  }
+  
+  return result;
 }
 
 /**
- * RSIã®è¨ˆç®—
+ * RSI‚ÌŒvZ
+ * @param {Array} prices - ‰¿Šiƒf[ƒ^‚Ì”z—ñ
+ * @param {Number} period - ŠúŠÔiƒfƒtƒHƒ‹ƒg14j
+ * @return {Array} RSI’l‚Ì”z—ñ
  */
 export function calculateRSI(prices, period = 14) {
-  // ãƒ€ãƒŸãƒ¼å®Ÿè£…
-  return Array(prices.length).fill(50);
+  const result = Array(prices.length).fill(null);
+  
+  // ƒf[ƒ^‚ª•s‘«‚µ‚Ä‚¢‚éê‡‚Í‘ŠúƒŠƒ^[ƒ“
+  if (prices.length <= period) {
+    return result;
+  }
+  
+  // ‰¿Ši•Ï‰»‚ÌŒvZ
+  const changes = [];
+  for (let i = 1; i < prices.length; i++) {
+    changes.push(prices[i] - prices[i - 1]);
+  }
+  
+  // ‰Šú‚ÌRS’l‚ğŒvZ
+  let gains = 0;
+  let losses = 0;
+  
+  for (let i = 0; i < period; i++) {
+    const change = changes[i];
+    if (change > 0) {
+      gains += change;
+    } else {
+      losses -= change; // ‘¹¸‚Í³‚Ì’l‚É•ÏŠ·
+    }
+  }
+  
+  // ‰Šú‚Ì•½‹Ï—˜“¾‚Æ•½‹Ï‘¹¸
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+  
+  // Å‰‚ÌRSI’l‚ğŒvZ
+  let rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+  result[period] = 100 - (100 / (1 + rs));
+  
+  // c‚è‚ÌRSI’l‚ğƒXƒ€[ƒWƒ“ƒO‚ÅŒvZ
+  for (let i = period + 1; i < prices.length; i++) {
+    const change = changes[i - 1];
+    let currentGain = 0;
+    let currentLoss = 0;
+    
+    if (change > 0) {
+      currentGain = change;
+    } else {
+      currentLoss = -change;
+    }
+    
+    // ƒXƒ€[ƒWƒ“ƒO‚³‚ê‚½•½‹ÏŒvZ
+    avgGain = ((avgGain * (period - 1)) + currentGain) / period;
+    avgLoss = ((avgLoss * (period - 1)) + currentLoss) / period;
+    
+    rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+    result[i] = 100 - (100 / (1 + rs));
+  }
+  
+  return result;
 }
 
 /**
- * MACDã®è¨ˆç®—
+ * w”ˆÚ“®•½‹ÏiEMAj‚ğŒvZ‚·‚é•â•ŠÖ”
+ * @param {Array} prices - ‰¿Šiƒf[ƒ^‚Ì”z—ñ
+ * @param {Number} period - ŠúŠÔ
+ * @return {Array} EMA’l‚Ì”z—ñ
+ */
+function calculateEMA(prices, period) {
+  const result = Array(prices.length).fill(null);
+  
+  // Å‰‚ÌEMA‚Í’PƒˆÚ“®•½‹ÏiSMAj
+  let sum = 0;
+  for (let i = 0; i < period; i++) {
+    sum += prices[i];
+  }
+  result[period - 1] = sum / period;
+  
+  // ‰Ádæ”
+  const multiplier = 2 / (period + 1);
+  
+  // c‚è‚ÌEMA‚ğŒvZ
+  for (let i = period; i < prices.length; i++) {
+    result[i] = (prices[i] - result[i - 1]) * multiplier + result[i - 1];
+  }
+  
+  return result;
+}
+
+/**
+ * MACD‚ÌŒvZ
+ * @param {Array} prices - ‰¿Šiƒf[ƒ^‚Ì”z—ñ
+ * @param {Number} fastPeriod - ’ZŠúŠúŠÔiƒfƒtƒHƒ‹ƒg12j
+ * @param {Number} slowPeriod - ’·ŠúŠúŠÔiƒfƒtƒHƒ‹ƒg26j
+ * @param {Number} signalPeriod - ƒVƒOƒiƒ‹ŠúŠÔiƒfƒtƒHƒ‹ƒg9j
+ * @return {Object} macd, signal, histogram‚ğŠÜ‚ŞƒIƒuƒWƒFƒNƒg
  */
 export function calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
-  // ãƒ€ãƒŸãƒ¼å®Ÿè£…
-  return {
-    macd: Array(prices.length).fill(0),
-    signal: Array(prices.length).fill(0),
-    histogram: Array(prices.length).fill(0)
+  // Œ‹‰ÊƒIƒuƒWƒFƒNƒg‚Ì‰Šú‰»
+  const result = {
+    macd: Array(prices.length).fill(null),
+    signal: Array(prices.length).fill(null),
+    histogram: Array(prices.length).fill(null)
   };
+  
+  // ƒf[ƒ^‚ª•s‘«‚µ‚Ä‚¢‚éê‡‚Í‘ŠúƒŠƒ^[ƒ“
+  if (prices.length < Math.max(fastPeriod, slowPeriod) + signalPeriod) {
+    return result;
+  }
+  
+  // ’ZŠú‚Æ’·Šú‚ÌEMA‚ğŒvZ
+  const fastEMA = calculateEMA(prices, fastPeriod);
+  const slowEMA = calculateEMA(prices, slowPeriod);
+  
+  // MACDü‚ÌŒvZ
+  const macdLine = [];
+  for (let i = 0; i < prices.length; i++) {
+    if (i < slowPeriod - 1) {
+      macdLine.push(null);
+    } else {
+      macdLine.push(fastEMA[i] - slowEMA[i]);
+    }
+  }
+  
+  // ƒVƒOƒiƒ‹ü‚ÌŒvZiMACDü‚ÌEMAj
+  // null’l‚ğœ‹‚µ‚Ä‚©‚çEMA‚ğŒvZ
+  const validMacd = macdLine.filter(val => val !== null);
+  const signalLine = calculateEMA(validMacd, signalPeriod);
+  
+  // ƒVƒOƒiƒ‹ü‚ÌŒ‹‰Ê‚ğ®Œ`inull‚Ì•”•ª‚ğl—¶j
+  let signalIndex = 0;
+  for (let i = 0; i < prices.length; i++) {
+    if (i < slowPeriod + signalPeriod - 2) {
+      result.signal[i] = null;
+    } else {
+      result.signal[i] = signalLine[signalIndex++];
+    }
+  }
+  
+  // MACDü‚ÆŒ‹‰Ê‚Éİ’è
+  result.macd = macdLine;
+  
+  // ƒqƒXƒgƒOƒ‰ƒ€‚ÌŒvZ
+  for (let i = 0; i < prices.length; i++) {
+    if (result.macd[i] !== null && result.signal[i] !== null) {
+      result.histogram[i] = result.macd[i] - result.signal[i];
+    }
+  }
+  
+  return result;
 }
 
 /**
- * å‡ºæ¥é«˜å¤‰åŒ–ç‡ã®è¨ˆç®—
+ * o—ˆ‚•Ï‰»—¦‚ÌŒvZ
+ * @param {Array} volumes - o—ˆ‚ƒf[ƒ^‚Ì”z—ñ
+ * @param {Number} period - ŠúŠÔiƒfƒtƒHƒ‹ƒg5j
+ * @return {Array} o—ˆ‚•Ï‰»—¦‚Ì”z—ñi“•\¦j
  */
 export function calculateVolumeChange(volumes, period = 5) {
-  // ãƒ€ãƒŸãƒ¼å®Ÿè£…
-  return Array(volumes.length).fill(0);
+  const result = Array(volumes.length).fill(null);
+  
+  // ƒf[ƒ^‚ª•s‘«‚µ‚Ä‚¢‚éê‡‚Í‘ŠúƒŠƒ^[ƒ“
+  if (volumes.length <= period) {
+    return result;
+  }
+  
+  // Šeƒ|ƒCƒ“ƒg‚Å‚Ìo—ˆ‚•Ï‰»—¦‚ğŒvZ
+  for (let i = period; i < volumes.length; i++) {
+    const currentVolume = volumes[i];
+    const pastVolume = volumes[i - period];
+    
+    // ‰ß‹‚Ìo—ˆ‚‚ªƒ[ƒ‚Ìê‡‚Ì‘Îˆ
+    if (pastVolume === 0) {
+      result[i] = currentVolume > 0 ? 100 : 0;
+    } else {
+      // •Ï‰»—¦‚ğƒp[ƒZƒ“ƒe[ƒW‚ÅŒvZ
+      result[i] = ((currentVolume - pastVolume) / pastVolume) * 100;
+    }
+  }
+  
+  return result;
 }
 
 /**
- * ä¾¡æ ¼å®‰å®šæ€§ã®è¨ˆç®—
+ * ‰¿ŠiˆÀ’è«‚ÌŒvZ
+ * @param {Array} prices - ‰¿Šiƒf[ƒ^‚Ì”z—ñ
+ * @param {Number} period - ŠúŠÔiƒfƒtƒHƒ‹ƒg5j
+ * @return {Array} ‰¿ŠiˆÀ’è«‚Ì”z—ñi0-100‚Ì’lA100‚ªÅ‚àˆÀ’èj
  */
 export function calculatePriceStability(prices, period = 5) {
-  // ãƒ€ãƒŸãƒ¼å®Ÿè£…
-  return Array(prices.length).fill(0);
+  const result = Array(prices.length).fill(null);
+  
+  // ƒf[ƒ^‚ª•s‘«‚µ‚Ä‚¢‚éê‡‚Í‘ŠúƒŠƒ^[ƒ“
+  if (prices.length < period) {
+    return result;
+  }
+  
+  // Šeƒ|ƒCƒ“ƒg‚Å‚Ì‰¿ŠiˆÀ’è«‚ğŒvZ
+  for (let i = period - 1; i < prices.length; i++) {
+    const periodPrices = prices.slice(i - period + 1, i + 1);
+    
+    // ŠúŠÔ“à‚ÌÅ‚’l‚ÆÅˆÀ’l
+    const max = Math.max(...periodPrices);
+    const min = Math.min(...periodPrices);
+    
+    // ŠúŠÔ“à‚Ì•½‹Ï‰¿Ši
+    const avg = periodPrices.reduce((sum, price) => sum + price, 0) / period;
+    
+    // ‰¿Ši•Ï“®‚ÌŒvZiÅ‘å•Ï“®• / •½‹Ï‰¿Šij
+    const volatility = avg > 0 ? ((max - min) / avg) * 100 : 0;
+    
+    // ˆÀ’è«ƒXƒRƒA‚ÌŒvZi100‚ªÅ‘å‚ÌˆÀ’è«j
+    // •Ï“®—¦‚ª5%ˆÈã‚È‚çˆÀ’è«‚Í’á‚¢i0‚É‹ß‚¢j
+    // •Ï“®—¦‚ª0%‚È‚çˆÀ’è«‚Í‚‚¢i100‚É‹ß‚¢j
+    result[i] = Math.max(0, 100 - (volatility * 20));
+  }
+  
+  return result;
 }

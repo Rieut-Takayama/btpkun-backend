@@ -208,15 +208,20 @@ export const calculateTotalBuyScore = (signals) => {
 /**
  * シグナル生成の総合関数 - server.jsから呼び出される
  * この関数は各種シグナル検出ロジックを実行し、総合的な買いシグナル強度を算出します
- * 
+ *
+ * @param {Array} prices - 価格データ（オプション、未指定時はダミーデータ使用）
+ * @param {Array} volumes - 出来高データ（オプション、未指定時はダミーデータ使用）
+ * @param {Array} lows - 安値データ（オプション、未指定時はダミーデータ使用）
  * @returns {Promise<{strength: number, message: string}>} 検出結果
  */
-export async function generateSignal() {
+export async function generateSignal(prices, volumes, lows) {
   try {
-    // ダミーデータ生成（実際の実装では、APIからデータを取得するなど）
-    const prices = Array(30).fill(0).map((_, i) => 100 + Math.random() * 10);
-    const volumes = Array(30).fill(0).map((_, i) => 1000 + Math.random() * 500);
-    const lows = prices.map(p => p - Math.random() * 5);
+    // データが提供されない場合はダミーデータを生成
+    if (!prices || !volumes || !lows) {
+      prices = Array(30).fill(0).map((_, i) => 100 + Math.random() * 10);
+      volumes = Array(30).fill(0).map((_, i) => 1000 + Math.random() * 500);
+      lows = prices.map(p => p - Math.random() * 5);
+    }
 
     // 各シグナルを検出
     const accPhaseSignal = detectAccumulationPhase(prices, volumes);
@@ -229,11 +234,11 @@ export async function generateSignal() {
 
     // 総合買い度を計算
     const strength = calculateTotalBuyScore(signals);
-    
+
     // メッセージ生成
-    let message = `買いシグナル強度: ${strength}%`;
+    let message = \買いシグナル強度: \%\;
     if (detectedSignals.length > 0) {
-      message += ` (${detectedSignals.map(s => s.message).join(', ')})`;
+      message += \ (\)\;
     }
 
     return { strength, message };
